@@ -46,13 +46,6 @@ def format_datetime(value, format='medium'):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-def num_upcoming_shows(venue):
-  num_shows = 0
-  for show in venue.shows:
-    if show.start_time.astimezone(pytz.UTC) > datetime.now().astimezone(pytz.UTC):
-      num_shows += 1
-  return num_shows
-
 #----------------------------------------------------------------------------#
 # Controllers.
 #----------------------------------------------------------------------------#
@@ -75,11 +68,15 @@ def venues():
 
   i = -1
   for venue in venues:
+    num_shows = db.session.query(Show).join(Artist).filter(Show.venue_id==venue.id).filter(
+      Show.start_time > datetime.now()
+    ).count()
+
     if current_city == venue.city:
       venue_data = {
         'id': venue.id,
         'name': venue.name,
-        'num_upcoming_shows': num_upcoming_shows(venue) 
+        'num_upcoming_shows': num_shows
       }
       data[i]['venues'].append(venue_data)
     else:
@@ -92,7 +89,7 @@ def venues():
           {
             'id': venue.id,
             'name': venue.name,
-            'num_upcoming_shows': num_upcoming_shows(venue)
+            'num_upcoming_shows': num_shows
           }
         ]
       }
@@ -112,7 +109,9 @@ def search_venues():
   venues_data = []
 
   for venue in venues:
-    num_shows = num_upcoming_shows(venue)
+    num_shows = db.session.query(Show).join(Artist).filter(Show.venue_id==venue.id).filter(
+      Show.start_time > datetime.now()
+    ).count()
 
     venues_data.append({
       'id': venue.id,
@@ -135,10 +134,11 @@ def show_venue(venue_id):
   if not venue:
     abort(404)
 
-  shows = venue.shows
   upcoming_shows = []
-
   past_shows = []
+  now = datetime.now().astimezone(pytz.UTC)
+
+  shows = db.session.query(Show).join(Artist).filter(Show.venue_id==venue.id)
   
   for show in shows:
     show_data = {
@@ -148,7 +148,7 @@ def show_venue(venue_id):
       'start_time': show.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     }
 
-    if show.start_time.astimezone(pytz.UTC) > datetime.now().astimezone(pytz.UTC):
+    if show.start_time.astimezone(pytz.UTC) > now:
       upcoming_shows.append(show_data)
     else:
       past_shows.append(show_data)
@@ -269,7 +269,9 @@ def search_artists():
   artists_data = []
 
   for artist in artists:
-    num_shows = num_upcoming_shows(artist)
+    num_shows = db.session.query(Show).join(Venue).filter(Show.artist_id==artist.id).filter(
+      Show.start_time > datetime.now()
+    ).count()
 
     artists_data.append({
       'id': artist.id,
@@ -288,13 +290,14 @@ def search_artists():
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   artist = Artist.query.get(artist_id)
-  shows = artist.shows
 
   if not artist:
     abort(404)
   
   upcoming_shows = []
   past_shows = []
+
+  shows = db.session.query(Show).join(Venue).filter(Show.artist_id==artist.id)
 
   for show in shows:
     show_data = {
