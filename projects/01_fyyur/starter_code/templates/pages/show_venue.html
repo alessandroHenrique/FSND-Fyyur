@@ -77,5 +77,26 @@
 
 <a href="/venues/{{ venue.id }}/edit"><button class="btn btn-primary btn-lg">Edit</button></a>
 
-{% endblock %}
+<button data-id="{{ venue.id }}" id="delete-venue" class="btn btn-danger btn-lg">Delete</button>
 
+<script>
+	document.getElementById('delete-venue').onclick = function(e) {
+		e.preventDefault();
+		const venueId = e.target.dataset['id']
+		fetch('/venues/' + venueId, {
+			method: 'DELETE'
+		})
+		.then(function(response){
+			return response.json();
+		})
+		.then(function(jsonResponse){
+			if (jsonResponse['success']){
+				window.location.href = '/'
+			}
+		})
+		.catch(function(){
+			console.log('Failed to delete')
+		})
+	}
+</script>
+{% endblock %}
